@@ -39,6 +39,7 @@ def train(batch_size, num_epochs, learning_rate, inference_mode):
         trainY.append(Y)
     word_dict['unk'] = count
     word_dict['_'] = count + 1
+    unk_id = count
     src_vocab_size = len(word_dict)
     start_id = src_vocab_size  # 8002
     end_id = src_vocab_size + 1  # 8003
@@ -99,6 +100,31 @@ def train(batch_size, num_epochs, learning_rate, inference_mode):
 
     # Load Model
     tl.files.load_and_assign_npz(sess=sess, name='model.npz', network=net)
+
+    def inference(seed):
+        seed_id = [word_dict.get(w, unk_id) for w in seed.split(" ")]
+
+        # Encode and get state
+        state = sess.run(net_rnn.final_state_encode,
+                         {encode_seqs2: [seed_id]})
+        # Decode, feed start_id and get first word [https://github.com/zsdonghao/tensorlayer/blob/master/example/tutorial_ptb_lstm_state_is_tuple.py]
+        o, state = sess.run([y, net_rnn.final_state_decode],
+                            {net_rnn.initial_state_decode: state,
+                             decode_seqs2: [[start_id]]})
+        w_id = tl.nlp.sample_top(o[0], top_k=3)
+        w = word_dict_rev[w_id]
+        # Decode and feed state iteratively
+        sentence = [w]
+        for _ in range(30):  # max sentence length
+            o, state = sess.run([y, net_rnn.final_state_decode],
+                                {net_rnn.initial_state_decode: state,
+                                 decode_seqs2: [[w_id]]})
+            w_id = tl.nlp.sample_top(o[0], top_k=2)
+            w = word_dict_rev[w_id]
+            if w_id == end_id:
+                break
+            sentence = sentence + [w]
+        return sentence
 
     if inference_mode:
         print('Inference Mode')
