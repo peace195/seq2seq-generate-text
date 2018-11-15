@@ -1,13 +1,5 @@
 #! /usr/bin/python
 # -*- coding: utf8 -*-
-"""Sequence to Sequence Learning for Twitter/Cornell Chatbot.
-
-References
-----------
-http://suriyadeepan.github.io/2016-12-31-practical-seq2seq/
-"""
-import time
-
 import click
 import numpy as np
 import tensorflow as tf
@@ -16,8 +8,6 @@ import tensorlayer as tl
 from tqdm import tqdm
 from sklearn.utils import shuffle
 from tensorlayer.layers import DenseLayer, EmbeddingInputlayer, Seq2Seq, retrieve_seq_length_op2
-
-from data.twitter import data
 
 sess_config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
 
