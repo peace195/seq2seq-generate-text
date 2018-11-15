@@ -1,4 +1,5 @@
 dea
+.idea/
 docs/_build
 tensorlayer
 tensorlayer/__pacache__
