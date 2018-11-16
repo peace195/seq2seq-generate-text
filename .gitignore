@@ -1,6 +1,7 @@
 dea
 .idea/
 docs/_build
+data/glove.6B.50d.txt
 tensorlayer
 tensorlayer/__pacache__
 tensorlayer/.DS_Store

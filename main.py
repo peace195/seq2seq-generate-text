@@ -1,5 +1,7 @@
 #! /usr/bin/python
 # -*- coding: utf8 -*-
+import codecs
+
 import click
 import numpy as np
 import tensorflow as tf
@@ -25,35 +27,54 @@ def train(batch_size, num_epochs, learning_rate, inference_mode):
     # Load dataset
     trainX = []
     trainY = []
-    count = 0
     word_dict = {}
+    embedding = []
+
+    f_vec = codecs.open('./data/glove.6B.50d.txt', 'r', 'utf-8')
+    idx = 0
+    for line in f_vec:
+        if len(line) < 50:
+            continue
+        else:
+            component = line.strip().split(' ')
+            word_dict[component[0].lower()] = idx
+            word_vec = list()
+            for i in range(1, len(component)):
+                word_vec.append(float(component[i]))
+            embedding.append(word_vec)
+            idx = idx + 1
+    f_vec.close()
+    unk_id = word_dict['unk']
+    src_vocab_size = len(word_dict)
+    start_id = src_vocab_size
+    end_id = src_vocab_size + 1
+    word_dict['start_id'] = start_id
+    embedding.append([0.] * len(embedding[0]))
+    word_dict['end_id'] = end_id
+    embedding.append([0.] * len(embedding[0]))
+    word_dict_rev = {v: k for k, v in word_dict.items()}
+    emb_dim = 50
+    src_vocab_size = src_vocab_size + 2
     fout = open("./data/lp_train_r0.txt", "r")
     fin = open("./data/lp_kw_train_r0.txt", "r")
+
     for line in fout:
         Y = []
         for word in line.strip().split():
-            if word not in word_dict:
-                word_dict[word] = count
-                count = count + 1
-            Y.append(word_dict[word])
+            try:
+                Y.append(word_dict[word])
+            except KeyError:
+                continue
         trainY.append(Y)
-    word_dict['unk'] = count
-    word_dict['_'] = count + 1
-    unk_id = count
-    src_vocab_size = len(word_dict)
-    start_id = src_vocab_size  # 8002
-    end_id = src_vocab_size + 1  # 8003
-    word_dict['start_id'] = start_id
-    word_dict['end_id'] = end_id
-    word_dict_rev = {v: k for k, v in word_dict.items()}
-    emb_dim = 1024
-    src_vocab_size = src_vocab_size + 2
 
     for line in fin:
         line = line.replace("\t", " ")
         X = []
         for word in line.strip().split():
-            X.append(word_dict[word])
+            try:
+                X.append(word_dict[word])
+            except:
+                continue
         trainX.append(X)
 
     fout.close()
@@ -99,6 +120,7 @@ def train(batch_size, num_epochs, learning_rate, inference_mode):
     sess.run(tf.global_variables_initializer())
 
     # Load Model
+    tl.files.assign_params(sess, [np.array(embedding)], net)
     tl.files.load_and_assign_npz(sess=sess, name='model.npz', network=net)
 
     def inference(seed):
@@ -142,9 +164,9 @@ def train(batch_size, num_epochs, learning_rate, inference_mode):
 
                 X = tl.prepro.pad_sequences(X)
                 _target_seqs = tl.prepro.sequences_add_end_id(Y, end_id=end_id)
-                _target_seqs = tl.prepro.pad_sequences(_target_seqs)
+                _target_seqs = tl.prepro.pad_sequences(_target_seqs, value=unk_id)
                 _decode_seqs = tl.prepro.sequences_add_start_id(Y, start_id=start_id, remove_last=False)
-                _decode_seqs = tl.prepro.pad_sequences(_decode_seqs)
+                _decode_seqs = tl.prepro.pad_sequences(_decode_seqs, value=unk_id)
                 _target_mask = tl.prepro.sequences_get_mask(_target_seqs)
                 _, loss_iter = sess.run([train_op, loss], {encode_seqs: X, decode_seqs: _decode_seqs,
                                 target_seqs: _target_seqs, target_mask: _target_mask})
@@ -161,8 +183,6 @@ def train(batch_size, num_epochs, learning_rate, inference_mode):
 
 def create_model(encode_seqs, decode_seqs, src_vocab_size, emb_dim, is_train=True, reuse=False):
     with tf.variable_scope("model", reuse=reuse):
-        # for chatbot, you can use the same embedding layer,
-        # for translation, you may want to use 2 seperated embedding layers
         with tf.variable_scope("embedding") as vs:
             net_encode = EmbeddingInputlayer(
                 inputs = encode_seqs,
