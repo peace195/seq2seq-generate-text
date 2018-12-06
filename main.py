@@ -23,7 +23,7 @@ Training model [optional args]
 @click.command()
 @click.option('-bs', '--batch-size', default=32,
               help='Batch size for training on minibatches',)
-@click.option('-n', '--num-epochs', default=1,
+@click.option('-n', '--num-epochs', default=10,
               help='Number of epochs for training',)
 @click.option('-lr', '--learning-rate', default=0.001,
               help='Learning rate to use when training model',)
@@ -65,31 +65,25 @@ def train(batch_size, num_epochs, learning_rate, inference_mode):
     word_dict_rev = {v: k for k, v in word_dict.items()}
     emb_dim = 50
     src_vocab_size = src_vocab_size + 2
-    fout = open("./data/lp_train_r0.txt", "r")
-    fin = open("./data/lp_kw_train_r0.txt", "r")
+    fout = open("./data/lp_train_r1.txt", "r")
 
     for line in fout:
         Y = []
-        for word in line.strip().split():
+        words = line.strip().replace("\t", " ").split()
+        for word in words[:-2]:
             try:
                 Y.append(word_dict[word])
             except KeyError:
                 continue
+        try:
+            trainX.append([word_dict[words[-2]], word_dict[words[-1]]])
+        except KeyError:
+            continue
         trainY.append(Y)
 
-    for line in fin:
-        line = line.replace("\t", " ")
-        X = []
-        for word in line.strip().split():
-            try:
-                X.append(word_dict[word])
-            except BaseException:
-                continue
-        trainX.append(X)
-
     fout.close()
-    fin.close()
     src_len = len(trainX)
+    print(src_len)
     n_step = src_len // batch_size
 
     """ A data for Seq2Seq should look like this:
@@ -210,7 +204,7 @@ def train(batch_size, num_epochs, learning_rate, inference_mode):
             print('Epoch [{}/{}]: loss {:.4f}'.format(epoch + \
                   1, num_epochs, total_loss / n_iter))
 
-            tl.files.save_npz(net.all_params, name='model.npz', sess=sess)
+            tl.files.save_npz(net.all_params, name='model_1000.npz', sess=sess)
 
     sess.close()
 
