@@ -65,7 +65,7 @@ def train(batch_size, num_epochs, learning_rate, inference_mode):
     word_dict_rev = {v: k for k, v in word_dict.items()}
     emb_dim = 50
     src_vocab_size = src_vocab_size + 2
-    fout = open("./data/lp_train_r1.txt", "r")
+    fout = open("./updated_dataset/3.txt", "r")
 
     for line in fout:
         Y = []
